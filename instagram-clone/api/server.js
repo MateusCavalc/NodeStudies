@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const multiparty = require('connect-multiparty');
-const mongodb = require('mongodb');
+const MongoClient = require('mongodb').MongoClient;
 const ObjectId = require('mongodb').ObjectId;
 const fs = require('fs');
 
@@ -12,11 +12,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(multiparty());
 
-const db = new mongodb.Db(
-    'instagram',
-    new mongodb.Server('localhost', 27017, {}),
-    {}
-);
+const url = 'mongodb://balta:e296cd9f@localhost:27017/instagram';
 
 app.get('/', (req, res) => {
     res.send({ msg: 'oie' });
@@ -46,16 +42,18 @@ app.post('/api', (req, res) => {
             titulo: req.body.titulo
         };
 
-        db.open((err, mongoClient) => {
-            mongoClient.collection('posts', (err, coll) => {
-                coll.insert(postDados, (err, rec) => {
-                    if (err)
-                        res.json(err);
-                    else
-                        res.json(rec);
-                });
+        console.log("censegui");
 
-                mongoClient.close();
+        MongoClient.connect(url, (err, db) => {
+            if (err) res.json(err);
+            db.collection('posts').insertOne(postDados, (err, rec) => {
+                console.log("censegui?");
+                if (err)
+                    res.json(err);
+                else
+                    res.json(rec);
+                    
+                db.close();
             });
         });
 
@@ -66,16 +64,15 @@ app.post('/api', (req, res) => {
 // (READ)
 app.get('/api', (req, res) => {
 
-    db.open((err, mongoClient) => {
-        mongoClient.collection('posts', (err, coll) => {
-            coll.find().toArray((err, recArray) => {
-                if (err)
-                    res.json(err);
-                else
-                    res.json(recArray);
-            });
+    MongoClient.connect(url, (err, db) => {
+        if (err) res.json(err)
+        db.collection('posts').find().toArray((err, recArray) => {
+            if (err)
+                res.json(err);
+            else
+                res.json(recArray);
 
-            mongoClient.close();
+            db.close();
         });
     });
 
@@ -86,16 +83,15 @@ app.get('/api/:id', (req, res) => {
 
     // req.params.[nome do parametro] para acessar o parâmetro passado pela rota 
 
-    db.open((err, mongoClient) => {
-        mongoClient.collection('posts', (err, coll) => {
-            coll.find({ _id: ObjectId(req.params.id) }).toArray((err, rec) => {
-                if (err)
-                    res.json(err);
-                else
-                    res.json(rec);
-            });
-
-            mongoClient.close();
+    MongoClient.connect(url, (err, db) => {
+        if (err) res.json(err)
+        db.collection('posts').find({ _id: ObjectId(req.params.id) }).toArray((err, rec) => {
+            if (err)
+                res.json(err);
+            else
+                res.json(rec);
+            
+            db.close();
         });
     });
 
@@ -108,9 +104,9 @@ app.put('/api/:id', (req, res) => {
 
     let novos_dados = req.body;
 
-    db.open((err, mongoClient) => {
-        mongoClient.collection('posts', (err, coll) => {
-            coll.update(
+    MongoClient.connect(url, (err, db) => {
+        if (err) res.json(err)
+        db.collection('posts').update(
                 {
                     _id: ObjectId(req.params.id)
                 },
@@ -123,12 +119,11 @@ app.put('/api/:id', (req, res) => {
                         res.json(err);
                     else
                         res.json(rec);
+                    
+                    db.close();
                 }
             );
-
-            mongoClient.close();
         });
-    });
 
 });
 
@@ -137,19 +132,17 @@ app.delete('/api/:id', (req, res) => {
 
     // req.params.[nome do parametro] para acessar o parâmetro passado pela rota
 
-    db.open((err, mongoClient) => {
-        mongoClient.collection('posts', (err, coll) => {
-            coll.remove({ _id: ObjectId(req.params.id) }, (err, rec) => {
+    MongoClient.connect(url, (err, db) => {
+        if (err) res.json(err)
+        db.collection('posts').remove({ _id: ObjectId(req.params.id) }, (err, rec) => {
                 if (err)
                     res.json(err);
                 else
                     res.json(rec);
-            });
-
-            mongoClient.close();
+                    
+                db.close();
         });
     });
-
 });
 
 const port = 8080;

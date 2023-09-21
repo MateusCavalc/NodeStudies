@@ -25,7 +25,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
 /* configurar o middleware express-validator */
-app.use(expressValidator());
+// app.use(expressValidator());
 
 /* efetua o autoload das rotas, dos models e dos controllers para o objeto app */
 consign()
