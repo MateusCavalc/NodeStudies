@@ -1,8 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const multiparty = require('connect-multiparty');
-const MongoClient = require('mongodb').MongoClient;
-const ObjectId = require('mongodb').ObjectId;
+const db = require('./db');
 const fs = require('fs');
 
 let app = express();
@@ -12,69 +11,45 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(multiparty());
 
-const url = 'mongodb://balta:e296cd9f@localhost:27017/instagram';
+app.use(function (req, res, next) {
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "content-type");
+    res.setHeader("Access-Control-Allow-Credentials", true);
+
+    next();
+});
 
 app.get('/', (req, res) => {
     res.send({ msg: 'oie' });
 });
 
 // (CREATE)
-app.post('/api', (req, res) => {
+app.post('/api', async (req, res) => {
 
-    let d = new Date();
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    const insertResult = await db.insertDoc(req);
 
-    let sentFiles = req.files // req.files contain the files sent from origin (connect-multiparty)
-    let path_origem = sentFiles.arquivo.path;
+    if (insertResult.error) {
+        res.status(500).json(insertResult);
+        return;
+    }
 
-    const dot_idx = sentFiles.arquivo.originalFilename.indexOf('.');
-    const serverFilename = sentFiles.arquivo.originalFilename.substr(0, dot_idx) + '_' + d.getTime() + sentFiles.arquivo.originalFilename.substr(dot_idx);
-    let path_destino = './uploads/' + serverFilename;
-
-    fs.rename(path_origem, path_destino, (err) => {
-        if (err) {
-            res.status(500).json({ error: err });
-            return;
-        }
-
-        let postDados = {
-            url_imagem: serverFilename,
-            titulo: req.body.titulo
-        };
-
-        console.log("censegui");
-
-        MongoClient.connect(url, (err, db) => {
-            if (err) res.json(err);
-            db.collection('posts').insertOne(postDados, (err, rec) => {
-                console.log("censegui?");
-                if (err)
-                    res.json(err);
-                else
-                    res.json(rec);
-                    
-                db.close();
-            });
-        });
-
-    });
+    res.json(insertResult);
 
 });
 
 // (READ)
-app.get('/api', (req, res) => {
+app.get('/api', async (req, res) => {
 
-    MongoClient.connect(url, (err, db) => {
-        if (err) res.json(err)
-        db.collection('posts').find().toArray((err, recArray) => {
-            if (err)
-                res.json(err);
-            else
-                res.json(recArray);
+    const readAllResult = await db.readAllDocs();
 
-            db.close();
-        });
-    });
+    if (readAllResult.error) {
+        res.status(500).json(readAllResult);
+        return;
+    }
+
+    res.json(readAllResult);
 
 });
 
@@ -90,59 +65,59 @@ app.get('/api/:id', (req, res) => {
                 res.json(err);
             else
                 res.json(rec);
-            
+
             db.close();
         });
     });
 
 });
 
+// (GET IMAGE by name)
+app.get('/imagens/:imagem', function (req, res) {
+
+    var img = req.params.imagem;
+
+    fs.readFile('./uploads/' + img, function (err, content) {
+        if (err) {
+            res.status(400).json(err);
+            return;
+        }
+
+        res.writeHead(200, { 'content-type': 'image/jpg' });
+        res.end(content);
+    })
+});
+
 // (UPDATE by id)
-app.put('/api/:id', (req, res) => {
+app.put('/api/:id', async (req, res) => {
 
     // req.params.[nome do parametro] para acessar o parâmetro passado pela rota
 
-    let novos_dados = req.body;
+    const updateResult = await db.updateById(req);
 
-    MongoClient.connect(url, (err, db) => {
-        if (err) res.json(err)
-        db.collection('posts').update(
-                {
-                    _id: ObjectId(req.params.id)
-                },
-                {
-                    $set: {
-                        titulo: novos_dados.titulo
-                    }
-                }, {}, (err, rec) => {
-                    if (err)
-                        res.json(err);
-                    else
-                        res.json(rec);
-                    
-                    db.close();
-                }
-            );
-        });
+    if (updateResult.error) {
+        res.status(500).json(updateResult);
+        return;
+    }
+
+    res.json(updateResult);
 
 });
 
 // (DELETE by id)
-app.delete('/api/:id', (req, res) => {
+app.delete('/api/:id', async (req, res) => {
 
     // req.params.[nome do parametro] para acessar o parâmetro passado pela rota
 
-    MongoClient.connect(url, (err, db) => {
-        if (err) res.json(err)
-        db.collection('posts').remove({ _id: ObjectId(req.params.id) }, (err, rec) => {
-                if (err)
-                    res.json(err);
-                else
-                    res.json(rec);
-                    
-                db.close();
-        });
-    });
+    const deleteResult = await db.deleteById(req);
+
+    if (deleteResult.error) {
+        res.status(500).json(deleteResult);
+        return;
+    }
+
+    res.json(deleteResult);
+
 });
 
 const port = 8080;

@@ -18,6 +18,101 @@
 	<script>
 		$(document).ready(function () {
 
+			function carrega_postagens() {
+				// criar xmlhttprequest
+				var xhr = new XMLHttpRequest();
+				xhr.open("GET", "http://localhost:8080/api");
+
+				xhr.onload = function () {
+					if (xhr.status === 200) {
+						var data = $.parseJSON(xhr.responseText);
+
+						for (i = 0; i < data.length; i++) {
+
+							$('#container_timeline').append(
+								'<div class="publicacao">' +
+								'<span class="titulo">' +
+								data[i].titulo +
+								'</span>' +
+								'<img src="http://localhost:8080/imagens/' + data[i].url_imagem + '" />' +
+								'<div class="comentarios" id="comentarios_' + data[i]._id + '"></div>' +
+								'<div class="comentar">' +
+								'<input type="text" class="form-control input_comentario" id="postagem_' + data[i]._id + '" placeholder="Adicione um comentário...">' +
+								'<button class="btn btn-default btn_postagem" value="' + data[i]._id + '" type="button">Comentar</button> ' +
+								'</div>' +
+								'</div>'
+							);
+
+							if (data[i].comentarios != undefined) {
+								var comentarios = data[i].comentarios;
+
+								for (j = 0; j < comentarios.length; j++) {
+									$('#comentarios_' + data[i]._id).append(
+										'<div class="txt_comentario" id="comentario_' + comentarios[j].id_comentario + '">' +
+										'<button type="button" value="' + comentarios[j].id_comentario + '" class="btn btn-default btn_remover_postagem">X</button>' +
+										comentarios[j].comentario +
+										'</div>'
+									);
+								}
+							}
+
+						}
+
+						$(document).on('click', '.btn_remover_postagem', function () {
+							var id_comentario = this.value;
+
+							var xhr = new XMLHttpRequest();
+							xhr.open('DELETE', 'http://localhost:8080/api/' + id_comentario);
+
+							xhr.onload = function () {
+								if (xhr.status === 200) {
+									// window.location.href = '/home';
+
+									$('#comentario_' + id_comentario).remove();
+								}
+							}
+
+							xhr.send();
+
+						});
+
+						$('.btn_postagem').click(function () {
+							var id = this.value;
+							var id_input_comentario = 'postagem_' + id;
+							var comentario = $('#' + id_input_comentario).val();
+
+							var xhr = new XMLHttpRequest();
+							xhr.open('PUT', 'http://localhost:8080/api/' + id);
+							xhr.setRequestHeader('Content-Type', 'application/json');
+
+							xhr.onload = function () {
+								if (xhr.status === 200) {
+									// window.location.href = '/home';
+
+									var data = $.parseJSON(xhr.responseText);
+
+									console.log(data);
+
+									$('#comentarios_' + id).append(
+										'<div class="txt_comentario" id="comentario_' + data.comentario_id + '">' +
+										'<button type="button" value="' + data.comentario_id + '" class="btn btn-default btn_remover_postagem">X</button>' +
+										comentario +
+										'</div>'
+									);
+								}
+							}
+
+							xhr.send(JSON.stringify({ comentario: comentario }));
+
+						});
+					}
+				}
+
+				xhr.send();
+			}
+
+			carrega_postagens();
+
 			$('#btn_incluir').click(function () {
 				$('#container_timeline').hide();
 				$('#container_form').show();
@@ -29,27 +124,31 @@
 				return false;
 			});
 
-			$('#btn-publicar').click(() => {
-				let formData = new FormData();
+			$('#btn-publicar').click(function () {
 
-				let arquivo = document.getElementById('arquivo').files[0];
-				let titulo = document.getElementById('titulo').value;
+				// criar um formData
+				var formData = new FormData();
 
-				formData.append('arquivo', arquivo);
-				formData.append('titulo', titulo);
+				var arquivo = document.getElementById("arquivo").files[0];
+				var titulo = document.getElementById("titulo").value;
 
+				formData.append("arquivo", arquivo);
+				formData.append("titulo", titulo);
+
+				// criar xmlhttprequest
 				var xhr = new XMLHttpRequest();
 
-				xhr.onreadystatechange = () => {
-					if (xhr.readyState === 4) {
-						let response = xhr.responseText;
-						document.getElementById('mensagem').innerHTML = response;
+				// verificar as mudanças de estado
+				xhr.onreadystatechange = function () {
+					if (xhr.readyState == 4) {
+						var resposta = xhr.responseText;
+						document.getElementById('mensagem').innerHTML = resposta;
 					}
 				}
 
+				//fazer o envio do nosso request
 				xhr.open("POST", "http://localhost:8080/api");
 				xhr.send(formData);
-
 			});
 
 		});
